@@ -1,3 +1,8 @@
+// 修改：
+// 1. buildViewMatrix 原本的计算错了，已修正
+// 2. DrawGizmo 最后根据 selection 构建 ViewMatrix 时，原本 +Z/-Z 的计算错了，已修正
+// 3. 在 drawPositiveLine 中动态计算文字大小和位置
+
 /*
 MIT License
 
@@ -90,7 +95,8 @@ namespace ImOGuizmo {
 			const auto lineEndPositive = ImVec2{ center.x + axis.x, center.y + axis.y };
 			internal::config.mDrawList->AddLine(center, lineEndPositive, color, thickness);
 			internal::config.mDrawList->AddCircleFilled(lineEndPositive, radius, color);
-			const auto textPosX = ImVec2{ static_cast<float>(floor(lineEndPositive.x - 3.0f)), static_cast<float>(floor(lineEndPositive.y - 6.0f)) };
+			const auto textSize = ImGui::CalcTextSize(text);
+			const auto textPosX = ImVec2{ roundf(lineEndPositive.x - textSize.x * 0.5f), roundf(lineEndPositive.y - textSize.y * 0.5f) };
 			if (selected) {
 				internal::config.mDrawList->AddCircle(lineEndPositive, radius, IM_COL32_WHITE, 0, 1.1f);
 				internal::config.mDrawList->AddText(textPosX, IM_COL32_WHITE, text);
@@ -117,25 +123,25 @@ namespace ImOGuizmo {
 		}
 
 		inline void buildViewMatrix(float* viewMatrix, ImVec3 const& aPosition, ImVec3 const& right, ImVec3 const& up, ImVec3 const& forward) {
-			// first column
+			// first row
 			viewMatrix[0] = right[0];
-			viewMatrix[4] = right[1];
-			viewMatrix[8] = right[2];
-			viewMatrix[12] = (-aPosition[0] * right[0] + -aPosition[1] * right[1] + -aPosition[2] * right[2]);
-			// second column
-			viewMatrix[1] = up[0];
-			viewMatrix[5] = up[1];
-			viewMatrix[9] = up[2];
-			viewMatrix[13] = (-aPosition[0] * up[0] + -aPosition[1] * up[1] + -aPosition[2] * up[2]);
-			// third column
-			viewMatrix[2] = forward[0];
-			viewMatrix[6] = forward[1];
-			viewMatrix[10] = forward[2];
-			viewMatrix[14] = (-aPosition[0] * forward[0] + -aPosition[1] * forward[1] + -aPosition[2] * forward[2]);
-			// fourth column
+			viewMatrix[1] = right[1];
+			viewMatrix[2] = right[2];
 			viewMatrix[3] = 0;
+			// second row
+			viewMatrix[4] = up[0];
+			viewMatrix[5] = up[1];
+			viewMatrix[6] = up[2];
 			viewMatrix[7] = 0;
+			// third row
+			viewMatrix[8] = forward[0];
+			viewMatrix[9] = forward[1];
+			viewMatrix[10] = forward[2];
 			viewMatrix[11] = 0;
+			// fourth row
+			viewMatrix[12] = -(right[0] * aPosition[0] + up[0] * aPosition[1] + forward[0] * aPosition[2]);
+			viewMatrix[13] = -(right[1] * aPosition[0] + up[1] * aPosition[1] + forward[1] * aPosition[2]);
+			viewMatrix[14] = -(right[2] * aPosition[0] + up[2] * aPosition[1] + forward[2] * aPosition[2]);
 			viewMatrix[15] = 1;
 		}
 
@@ -303,21 +309,21 @@ namespace ImOGuizmo {
 #endif
 
 			// +x axis 
-			if (selection == 0) internal::buildViewMatrix(viewMatrix, pivotPos + internal::ImVec3{ pivotDistance, 0, 0 }, internal::ImVec3{ 0, 0, -1}, internal::ImVec3{ 0, 1, 0 }, internal::ImVec3{ 1, 0, 0 });
+			if (selection == 0) internal::buildViewMatrix(viewMatrix, pivotPos + internal::ImVec3{ pivotDistance, 0, 0 }, internal::ImVec3{ 0, 0, -1 }, internal::ImVec3{ 0, 1, 0 }, internal::ImVec3{ 1, 0, 0 });
 			// +y axis 
 			if (selection == 1) internal::buildViewMatrix(viewMatrix, pivotPos + internal::ImVec3{ 0, pivotDistance, 0 }, internal::ImVec3{ 1, 0, 0 }, internal::ImVec3{ 0, 0, -1 }, internal::ImVec3{ 0, 1, 0 });
 			// +z axis 
-			if (selection == 2) internal::buildViewMatrix(viewMatrix, pivotPos + internal::ImVec3{ 0, 0, pivotDistance }, internal::ImVec3{ 1, 0, 0 }, internal::ImVec3{ 0, 1, 0 }, internal::ImVec3{ 0, 0, 1 });
+			if (selection == 2) internal::buildViewMatrix(viewMatrix, pivotPos + internal::ImVec3{ 0, 0, pivotDistance }, internal::ImVec3{ -1, 0, 0 }, internal::ImVec3{ 0, 1, 0 }, internal::ImVec3{ 0, 0, -1 });
 			// -x axis 
 			if (selection == 3) internal::buildViewMatrix(viewMatrix, pivotPos - internal::ImVec3{ pivotDistance, 0, 0 }, internal::ImVec3{ 0, 0, 1 }, internal::ImVec3{ 0, 1, 0 }, internal::ImVec3{ -1, 0, 0 });
 			// -y axis 
 			if (selection == 4) internal::buildViewMatrix(viewMatrix, pivotPos - internal::ImVec3{ 0, pivotDistance, 0 }, internal::ImVec3{ 1, 0, 0 }, internal::ImVec3{ 0, 0, 1 }, internal::ImVec3{ 0, -1, 0 });
 			// -z axis 
-			if (selection == 5) internal::buildViewMatrix(viewMatrix, pivotPos - internal::ImVec3{ 0, 0, pivotDistance }, internal::ImVec3{ -1, 0, 0 }, internal::ImVec3{ 0, 1, 0 }, internal::ImVec3{ 0, 0, -1 });
+			if (selection == 5) internal::buildViewMatrix(viewMatrix, pivotPos - internal::ImVec3{ 0, 0, pivotDistance }, internal::ImVec3{ 1, 0, 0 }, internal::ImVec3{ 0, 1, 0 }, internal::ImVec3{ 0, 0, 1 });
 
 			return true;
 		}
-		
+
 		return false;
 	}
 }
